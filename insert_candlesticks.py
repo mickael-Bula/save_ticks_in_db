@@ -2,8 +2,10 @@ import yfinance as yf
 import pandas as pd
 import datetime
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
 import os
 from dotenv import load_dotenv
+from typing import Optional
 
 # Charge les variables d'environnement du fichier .env ou .env.local.
 dotenv_file = ".env.local"
@@ -20,10 +22,10 @@ if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
         f"Erreur : Les variables de connexion à la base de données ne sont pas définies dans le fichier {dotenv_file}.")
     exit()
 
-engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+engine: Engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
 
 
-def create_table_if_not_exists(table_name: str):
+def create_table_if_not_exists(table_name: str) -> None:
     """Crée une table pour le ticker si elle n'existe pas déjà."""
     with engine.connect() as conn:
         create_table_sql = f"""
@@ -41,7 +43,7 @@ def create_table_if_not_exists(table_name: str):
         conn.commit()
 
 
-def get_last_date(table_name: str):
+def get_last_date(table_name: str) -> Optional[datetime.datetime]:
     """Récupère la dernière date de l'historique pour un ticker."""
     with engine.connect() as conn:
         query = f'SELECT "date" FROM "{table_name}" ORDER BY "date" DESC LIMIT 1'
@@ -51,7 +53,7 @@ def get_last_date(table_name: str):
         return None
 
 
-def load_data_to_db(ticker: str, table_name: str, start_date=None):
+def load_data_to_db(ticker: str, table_name: str, start_date: Optional[datetime.datetime] = None) -> None:
     """
     Récupère les données depuis yfinance et les charge dans la base de données.
     Si start_date est fourni, récupère les données à partir de cette date.
@@ -98,12 +100,10 @@ def load_data_to_db(ticker: str, table_name: str, start_date=None):
                 print("Le DataFrame est vide après exclusion de la dernière ligne. Fin du script.")
                 return
 
-    # --- LOGIQUE D'INSERTION/MISE À JOUR MODIFIÉE ---
     with engine.connect() as conn:
         for index, row in data.iterrows():
             date_to_check = row['date']
 
-            # Nouvelle gestion du volume : si NaN ou 0, on passe None pour obtenir NULL en base
             volume_value = int(row['volume']) if pd.notna(row['volume']) and row['volume'] > 0 else None
 
             check_query = text(f'SELECT 1 FROM "{table_name}" WHERE "date" = :date_val')
