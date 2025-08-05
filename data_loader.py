@@ -3,11 +3,10 @@ import pandas as pd
 import datetime
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
-from typing import Optional
 
 
 def load_data_to_db(engine: Engine, ticker: str, table_name: str,
-                    start_date: Optional[datetime.datetime] = None) -> None:
+                    start_date: datetime.datetime | None = None) -> None:
     """
     Récupère les données depuis yfinance et les charge dans la base de données.
     Si start_date est fourni, récupère les données à partir de cette date.

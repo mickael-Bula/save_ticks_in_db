@@ -3,7 +3,6 @@ import datetime
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from typing import Optional
 
 # Charge les variables d'environnement
 dotenv_file = ".env.local"
@@ -44,7 +43,7 @@ def create_table_if_not_exists(engine: Engine, table_name: str) -> None:
         conn.commit()
 
 
-def get_last_date(engine: Engine, table_name: str) -> Optional[datetime.datetime]:
+def get_last_date(engine: Engine, table_name: str) -> datetime.datetime | None:
     """Récupère la dernière date de l'historique pour un ticker."""
     with engine.connect() as conn:
         query = f'SELECT "date" FROM "{table_name}" ORDER BY "date" DESC LIMIT 1'
@@ -52,4 +51,3 @@ def get_last_date(engine: Engine, table_name: str) -> Optional[datetime.datetime
         if result:
             return result[0]
         return None
-    
