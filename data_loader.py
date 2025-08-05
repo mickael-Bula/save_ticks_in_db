@@ -1,59 +1,13 @@
 import yfinance as yf
 import pandas as pd
 import datetime
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 from sqlalchemy.engine import Engine
-import os
-from dotenv import load_dotenv
 from typing import Optional
 
-# Charge les variables d'environnement du fichier .env ou .env.local.
-dotenv_file = ".env.local"
-load_dotenv(dotenv_path=dotenv_file)
 
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_NAME = os.getenv("DB_NAME")
-
-if not all([DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME]):
-    print(
-        f"Erreur : Les variables de connexion à la base de données ne sont pas définies dans le fichier {dotenv_file}.")
-    exit()
-
-engine: Engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
-
-
-def create_table_if_not_exists(table_name: str) -> None:
-    """Crée une table pour le ticker si elle n'existe pas déjà."""
-    with engine.connect() as conn:
-        create_table_sql = f"""
-            CREATE TABLE IF NOT EXISTS "{table_name}" (
-                date TIMESTAMP PRIMARY KEY,
-                open FLOAT,
-                high FLOAT,
-                low FLOAT,
-                close FLOAT,
-                adj_close FLOAT,
-                volume BIGINT
-            );
-        """
-        conn.execute(text(create_table_sql))
-        conn.commit()
-
-
-def get_last_date(table_name: str) -> Optional[datetime.datetime]:
-    """Récupère la dernière date de l'historique pour un ticker."""
-    with engine.connect() as conn:
-        query = f'SELECT "date" FROM "{table_name}" ORDER BY "date" DESC LIMIT 1'
-        result = conn.execute(text(query)).fetchone()
-        if result:
-            return result[0]
-        return None
-
-
-def load_data_to_db(ticker: str, table_name: str, start_date: Optional[datetime.datetime] = None) -> None:
+def load_data_to_db(engine: Engine, ticker: str, table_name: str,
+                    start_date: Optional[datetime.datetime] = None) -> None:
     """
     Récupère les données depuis yfinance et les charge dans la base de données.
     Si start_date est fourni, récupère les données à partir de cette date.
@@ -101,7 +55,7 @@ def load_data_to_db(ticker: str, table_name: str, start_date: Optional[datetime.
                 return
 
     with engine.connect() as conn:
-        for index, row in data.iterrows():
+        for _, row in data.iterrows():
             date_to_check = row['date']
 
             volume_value = int(row['volume']) if pd.notna(row['volume']) and row['volume'] > 0 else None
@@ -142,13 +96,3 @@ def load_data_to_db(ticker: str, table_name: str, start_date: Optional[datetime.
         conn.commit()
 
     print(f"Données chargées avec succès pour {ticker} dans la table {table_name}.")
-
-
-# --- Partie principale du script ---
-if __name__ == "__main__":
-    ticker_to_process = "^FCHI"
-    table_name_to_use = "cac"
-
-    create_table_if_not_exists(table_name_to_use)
-    last_known_date = get_last_date(table_name_to_use)
-    load_data_to_db(ticker_to_process, table_name_to_use, start_date=last_known_date)
