@@ -1,9 +1,9 @@
 ## Installation d'un paquet depuis Pycharm
 
-L'installation d'un pasuet peut se faire avec la commande `pip install`,
+L'installation d'un paquet peut se faire avec la commande `pip install`,
 après s'être assuré que l'environnement virtuel est bien activé.
 
-Mais il est aussi possiblke d'installer une librairie Python requise par le projet,
+Mais il est aussi possible d'installer une librairie Python requise par le projet,
 sans passer par le terminal et l'activation de l'environnement virtuel. Pour cela :
 
 ```

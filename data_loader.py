@@ -5,20 +5,24 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 
-def load_data_to_db(engine: Engine, ticker: str, table_name: str,
-                    start_date: datetime.datetime | None = None) -> None:
+def load_data_to_db(engine: Engine,
+                    ticker: str,
+                    table_name: str,
+                    start_date: datetime.datetime | None = None,
+                    interval: str = '1d') -> None:
     """
     Récupère les données depuis yfinance et les charge dans la base de données.
-    Si start_date est fourni, récupère les données à partir de cette date.
+    Prend en charge différents horizons de temps (intervalle).
     """
-    print(f"Chargement des données pour {ticker}...")
+    print(f"Chargement des données pour {ticker} avec l'intervalle {interval}...")
 
+    # Le paramètre 'interval' est passé à yf.download
     if start_date:
-        print(f"Récupération des données depuis le {start_date.strftime('%Y-%m-%d')}")
-        data = yf.download(ticker, start=start_date, auto_adjust=False)
+        print(f"Récupération des données depuis le {start_date.strftime('%Y-%m-%d')} avec l'intervalle {interval}")
+        data = yf.download(ticker, start=start_date, interval=interval, auto_adjust=False)
     else:
-        print("Première récupération : chargement de l'historique complet.")
-        data = yf.download(ticker, period="max", auto_adjust=False)
+        print(f"Première récupération : chargement de l'historique complet pour l'intervalle {interval}.")
+        data = yf.download(ticker, period="max", interval=interval, auto_adjust=False)
 
     if data.empty:
         print("Aucune nouvelle donnée à charger.")
@@ -41,11 +45,13 @@ def load_data_to_db(engine: Engine, ticker: str, table_name: str,
     data.index.name = "date"
     data = data.reset_index()
 
+    # Note : La logique suivante pour le marché ouvert est optimisée pour l'intervalle '1d'.
+    # Pour '1h' ou '1wk', elle pourrait nécessiter une adaptation plus fine.
     current_time = datetime.datetime.now()
     is_weekday = 0 <= current_time.weekday() <= 4
     is_before_market_close = current_time.hour < 18
 
-    if is_weekday and is_before_market_close:
+    if interval == '1d' and is_weekday and is_before_market_close:
         if not data.empty and data['date'].iloc[-1].date() == current_time.date():
             print("Le marché est ouvert en semaine. La dernière ligne de données (non finale) ne sera pas insérée.")
             data = data.iloc[:-1]
